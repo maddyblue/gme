@@ -21,6 +21,10 @@ import (
 	"unsafe"
 )
 
+const (
+	FadeLength = time.Second * 8
+)
+
 var (
 	// InfoOnly is the sample rate to New if only track information is needed.
 	InfoOnly = C.gme_info_only
@@ -43,7 +47,10 @@ type GME struct {
 }
 
 type Track struct {
+	PlayLength time.Duration
+
 	// Times; negative if unknown.
+	// Length is the total length, if specified by file.
 	Length      time.Duration
 	IntroLength time.Duration
 	LoopLength  time.Duration
@@ -70,6 +77,7 @@ func (g *GME) Track(track int) (Track, error) {
 		return Track{}, err
 	}
 	return Track{
+		PlayLength:  time.Duration(t.play_length) * time.Millisecond,
 		Length:      time.Duration(t.length) * time.Millisecond,
 		IntroLength: time.Duration(t.intro_length) * time.Millisecond,
 		LoopLength:  time.Duration(t.loop_length) * time.Millisecond,
@@ -93,7 +101,7 @@ func (g *GME) Start(track int) error {
 	if err != nil {
 		return err
 	}
-	C.gme_set_fade(g.emu, C.int(t.Length / time.Millisecond))
+	C.gme_set_fade(g.emu, C.int(t.PlayLength/time.Millisecond))
 	return nil
 }
 
