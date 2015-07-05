@@ -21,6 +21,11 @@ import (
 	"unsafe"
 )
 
+var (
+	// InfoOnly is the sample rate to New if only track information is needed.
+	InfoOnly = C.gme_info_only
+)
+
 // New opens the file from b with given sample rate.
 func New(b []byte, sampleRate int) (*GME, error) {
 	var g GME
