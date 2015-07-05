@@ -85,8 +85,16 @@ func (g *GME) Track(track int) (Track, error) {
 
 // Start initializes the n-th track for playback, 0-based.
 func (g *GME) Start(track int) error {
-	C.gme_ignore_silence(g.emu, C.int(0))
-	return gmeError(C.gme_start_track(g.emu, C.int(track)))
+	err := gmeError(C.gme_start_track(g.emu, C.int(track)))
+	if err != nil {
+		return err
+	}
+	t, err := g.Track(track)
+	if err != nil {
+		return err
+	}
+	C.gme_set_fade(g.emu, C.int(t.Length / time.Millisecond))
+	return nil
 }
 
 // Played returns the played time of the current track.
