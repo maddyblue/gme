@@ -30,7 +30,7 @@ var (
 func New(b []byte, sampleRate int) (*GME, error) {
 	var g GME
 	data := unsafe.Pointer(&b[0])
-	cerror := C.gme_open_data(data, C.long(len(b)), &g.emu, C.long(sampleRate))
+	cerror := C.gme_open_data(data, C.long(len(b)), &g.emu, C.int(sampleRate))
 	if err := gmeError(cerror); err != nil {
 		return nil, err
 	}
@@ -64,7 +64,7 @@ func (g *GME) Tracks() int {
 
 // Track returns information about the n-th track, 0-based.
 func (g *GME) Track(track int) (Track, error) {
-	var t _Ctype_struct_track_info_t
+	var t *_Ctype_struct_gme_info_t
 	cerror := C.gme_track_info(g.emu, &t, C.int(track))
 	if err := gmeError(cerror); err != nil {
 		return Track{}, err
@@ -73,19 +73,14 @@ func (g *GME) Track(track int) (Track, error) {
 		Length:      time.Duration(t.length) * time.Millisecond,
 		IntroLength: time.Duration(t.intro_length) * time.Millisecond,
 		LoopLength:  time.Duration(t.loop_length) * time.Millisecond,
-		System:      cstring(t.system),
-		Game:        cstring(t.game),
-		Song:        cstring(t.song),
-		Author:      cstring(t.game),
-		Copyright:   cstring(t.copyright),
-		Comment:     cstring(t.comment),
-		Dumper:      cstring(t.dumper),
+		System:      C.GoString(t.system),
+		Game:        C.GoString(t.game),
+		Song:        C.GoString(t.song),
+		Author:      C.GoString(t.game),
+		Copyright:   C.GoString(t.copyright),
+		Comment:     C.GoString(t.comment),
+		Dumper:      C.GoString(t.dumper),
 	}, nil
-}
-
-func cstring(s [256]C.char) string {
-	str := (*C.char)(unsafe.Pointer(&s[0]))
-	return C.GoString(str)
 }
 
 // Start initializes the n-th track for playback, 0-based.
@@ -109,14 +104,14 @@ func (g *GME) Ended() bool {
 func (g *GME) Play(data []int16) (err error) {
 	b := make([]C.short, len(data))
 	datablock := (*C.short)(unsafe.Pointer(&b[0]))
-	cerror := C.gme_play(g.emu, C.long(len(b)), datablock)
+	cerror := C.gme_play(g.emu, C.int(len(b)), datablock)
 	if err := gmeError(cerror); err != nil {
 		return err
 	}
 	for i := range data {
 		data[i] = int16(C.short_index(datablock, C.int(i)))
 	}
-	if false && g.Ended() {
+	if g.Ended() {
 		return io.EOF
 	}
 	return nil

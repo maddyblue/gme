@@ -1,6 +1,6 @@
 // Common interface to game music file emulators
 
-// Game_Music_Emu 0.5.2
+// Game_Music_Emu 0.6.0
 #ifndef MUSIC_EMU_H
 #define MUSIC_EMU_H
 
@@ -41,8 +41,14 @@ public:
 	// Number of milliseconds (1000 msec = 1 second) played since beginning of track
 	long tell() const;
 	
+	// Number of samples generated since beginning of track
+	long tell_samples() const;
+
 	// Seek to new time in track. Seeking backwards or far forward can take a while.
 	blargg_err_t seek( long msec );
+	
+	// Equivalent to restarting track then skipping n samples
+	blargg_err_t seek_samples( long n );
 	
 	// Skip n samples
 	blargg_err_t skip( long n );
@@ -58,7 +64,7 @@ public:
 	void ignore_silence( bool disable = true );
 	
 	// Info for current track
-	Gme_File::track_info;
+	using Gme_File::track_info;
 	blargg_err_t track_info( track_info_t* out ) const;
 	
 // Sound customization
@@ -82,6 +88,10 @@ public:
 	// on others this has no effect. Should be called only once *before* set_sample_rate().
 	virtual void set_buffer( Multi_Buffer* ) { }
 	
+	// Enables/disables accurate emulation options, if any are supported. Might change
+	// equalizer settings.
+	void enable_accuracy( bool enable = true );
+	
 // Sound equalization (treble/bass)
 
 	// Frequency equalizer parameters (see gme.txt)
@@ -93,6 +103,14 @@ public:
 	
 	// Set frequency equalizer parameters
 	void set_equalizer( equalizer_t const& );
+
+	// Construct equalizer of given treble/bass settings
+	static const equalizer_t make_equalizer( double treble, double bass )
+	{
+	    const Music_Emu::equalizer_t e = { treble, bass,
+		0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+	    return e;
+	}
 	
 	// Equalizer settings for TV speaker
 	static equalizer_t const tv_eq;
@@ -111,7 +129,8 @@ protected:
 	void remute_voices();
 	
 	virtual blargg_err_t set_sample_rate_( long sample_rate ) = 0;
-	virtual void set_equalizer_( equalizer_t const& ) { };
+	virtual void set_equalizer_( equalizer_t const& ) { }
+	virtual void enable_accuracy_( bool /* enable */ ) { }
 	virtual void mute_voices_( int mask ) = 0;
 	virtual void set_tempo_( double ) = 0;
 	virtual blargg_err_t start_track_( int ) = 0; // tempo is set before this
@@ -160,7 +179,7 @@ private:
 	void emu_play( long count, sample_t* out );
 	
 	Multi_Buffer* effects_buffer;
-	friend Music_Emu* gme_new_emu( gme_type_t, long );
+	friend Music_Emu* gme_new_emu( gme_type_t, int );
 	friend void gme_set_stereo_depth( Music_Emu*, double );
 };
 
@@ -169,6 +188,7 @@ struct Gme_Info_ : Music_Emu
 {
 	virtual blargg_err_t set_sample_rate_( long sample_rate );
 	virtual void set_equalizer_( equalizer_t const& );
+	virtual void enable_accuracy_( bool );
 	virtual void mute_voices_( int mask );
 	virtual void set_tempo_( double );
 	virtual blargg_err_t start_track_( int );
@@ -189,6 +209,7 @@ inline int Music_Emu::current_track() const         { return current_track_; }
 inline bool Music_Emu::track_ended() const          { return track_ended_; }
 inline const Music_Emu::equalizer_t& Music_Emu::equalizer() const { return equalizer_; }
 
+inline void Music_Emu::enable_accuracy( bool b )    { enable_accuracy_( b ); }
 inline void Music_Emu::set_tempo_( double t )       { tempo_ = t; }
 inline void Music_Emu::remute_voices()              { mute_voices( mute_mask_ ); }
 inline void Music_Emu::ignore_silence( bool b )     { ignore_silence_ = b; }
@@ -197,7 +218,7 @@ inline blargg_err_t Music_Emu::start_track_( int )  { return 0; }
 inline void Music_Emu::set_voice_names( const char* const* names )
 {
 	// Intentional removal of const, so users don't have to remember obscure const in middle
-	voice_names_ = (const char**) names;
+	voice_names_ = const_cast<const char**> (names);
 }
 
 inline void Music_Emu::mute_voices_( int ) { }
