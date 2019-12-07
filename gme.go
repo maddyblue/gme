@@ -43,7 +43,7 @@ func New(b []byte, sampleRate int) (*GME, error) {
 
 // GME decodes game music.
 type GME struct {
-	emu *_Ctype_struct_Music_Emu
+	emu *C.struct_Music_Emu
 }
 
 type Track struct {
@@ -71,7 +71,7 @@ func (g *GME) Tracks() int {
 
 // Track returns information about the n-th track, 0-based.
 func (g *GME) Track(track int) (Track, error) {
-	var t *_Ctype_struct_gme_info_t
+	var t *C.struct_gme_info_t
 	cerror := C.gme_track_info(g.emu, &t, C.int(track))
 	if err := gmeError(cerror); err != nil {
 		return Track{}, err
@@ -149,7 +149,7 @@ func (g *GME) Warning() string {
 	return C.GoString(C.gme_warning(g.emu))
 }
 
-func gmeError(e _Ctype_gme_err_t) error {
+func gmeError(e C.gme_err_t) error {
 	if e == nil {
 		return nil
 	}
